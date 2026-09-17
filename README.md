@@ -14,9 +14,9 @@
 - [x] 额外功能：待办支持"不设置具体日期"（无日期待办只在"全部"里可见，日/周/月/年视图不会显示）+ 单个自由文本标签（会记住历史标签，新增/编辑时可直接选）
 - [x] 阶段2：接入 lunar-javascript，黄历卡片换成真实数据（农历日期、宜/忌、节气、传统节日）
 - [x] 阶段3：接入 Supabase 数据库，数据真正保存下来了、多端同步（`src/lib/supabase.ts` + `src/lib/tasksApi.ts` + `src/store/TaskStore.tsx`）。莫少爷备忘录里的12条真实待办已经正式导入到 Supabase 的 `tasks` 表里，不再是临时假数据
-- [ ] 阶段4：PIN 密码保护
-- [ ] 阶段5：新增待办导出到手机系统日历
-- [ ] 阶段6：PWA 化 + 正式部署上线
+- [x] 阶段4：PIN 密码保护（`src/auth/PinGate.tsx`，PIN 就是 Supabase 里固定账号 `owner@xingcheng.app` 的密码，`tasks` 表 RLS 规则已收紧为"必须登录才能读写"）
+- [~] 阶段5：新增待办导出到手机系统日历——生成 `.ics` 的逻辑已经写好（`src/lib/ics.ts`），还没接到界面上（没有"添加到日历"按钮），下次继续
+- [x] 阶段6：PWA 化 + 正式部署上线，线上地址：**https://demonqimo-arch.github.io/**（GitHub Pages + GitHub Actions 自动构建部署，每次 `git push` 到 `main` 分支会自动重新构建上线，工作流见 `.github/workflows/deploy.yml`）
 
 ## 本地运行（在这台 WSL 环境里）
 
@@ -32,7 +32,13 @@ npm run dev
 
 **运行前需要有 `.env.local` 文件**（项目根目录，内容是 `VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY` 两行，问我要具体值）。这个文件不进 git（`.gitignore` 里的 `*.local` 规则已经排除掉了）。
 
-**当前数据库权限是"临时全开放"**（`tasks` 表的 RLS 规则暂时允许所有读写），这是阶段3先跑通读写流程的临时状态，阶段4加上 PIN 密码保护时会收紧权限，在那之前不建议把这个网址发给任何人或者部署到公网。
+## 线上部署
+
+正式地址：**https://demonqimo-arch.github.io/**，托管在 GitHub Pages，用 GitHub Actions 自动构建部署（`.github/workflows/deploy.yml`）。
+
+- 每次把代码 `git push` 到 `main` 分支，GitHub 会自动重新 `npm run build` 并发布，几分钟后线上就是最新版本，不需要手动操作
+- 构建时用到的 `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` 存在仓库的 **Settings → Secrets and variables → Actions** 里，跟本地的 `.env.local` 是分开配置的两份（改了本地记得同步一下仓库里的，虽然这两个值目前应该不会变）
+- 仓库地址：`github.com/demonqimo-arch/demonqimo-arch.github.io`，用的是 GitHub 的"用户站点"特殊仓库名，所以网址是根域名不带路径
 
 ## 目录结构
 

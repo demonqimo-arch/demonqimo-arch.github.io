@@ -1,4 +1,6 @@
+import { CalendarPlus } from 'lucide-react'
 import taskDoneIcon from '../assets/feirenzai/task-done.png'
+import { canExportToCalendar, exportTaskToCalendar } from '../lib/ics'
 import type { Task } from '../types/task'
 
 interface Props {
@@ -46,9 +48,18 @@ export function TaskItem({ task, onToggle, dateLabel, onEdit }: Props) {
           <TaskContent task={task} dateLabel={dateLabel} />
         </button>
       ) : (
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <TaskContent task={task} dateLabel={dateLabel} />
         </div>
+      )}
+      {canExportToCalendar(task) && (
+        <button
+          onClick={() => exportTaskToCalendar(task)}
+          aria-label="添加到系统日历"
+          className="shrink-0 rounded-full p-1.5 text-ink-muted active:scale-95"
+        >
+          <CalendarPlus size={18} />
+        </button>
       )}
     </li>
   )
