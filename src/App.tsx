@@ -18,7 +18,7 @@ function Shell() {
   const { addTask } = useTaskStore()
 
   return (
-    <div className="relative mx-auto min-h-screen max-w-md pb-24">
+    <div className="relative mx-auto min-h-screen max-w-md pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <MonthlyBackdrop />
       <Routes>
         <Route path="/" element={<Navigate to="/day" replace />} />
@@ -32,7 +32,7 @@ function Shell() {
       <button
         onClick={() => setAddOpen(true)}
         aria-label="新增待办"
-        className="fixed bottom-20 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-lg transition-transform active:scale-95"
+        className="fixed right-6 bottom-[calc(5rem+env(safe-area-inset-bottom))] flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-lg transition-transform active:scale-95"
       >
         <Plus size={26} />
       </button>
