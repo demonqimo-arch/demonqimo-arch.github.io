@@ -15,7 +15,7 @@
 - [x] 阶段2：接入 lunar-javascript，黄历卡片换成真实数据（农历日期、宜/忌、节气、传统节日）
 - [x] 阶段3：接入 Supabase 数据库，数据真正保存下来了、多端同步（`src/lib/supabase.ts` + `src/lib/tasksApi.ts` + `src/store/TaskStore.tsx`）。莫少爷备忘录里的12条真实待办已经正式导入到 Supabase 的 `tasks` 表里，不再是临时假数据
 - [x] 阶段4：PIN 密码保护（`src/auth/PinGate.tsx`，PIN 就是 Supabase 里固定账号 `owner@xingcheng.app` 的密码，`tasks` 表 RLS 规则已收紧为"必须登录才能读写"）
-- [~] 阶段5：新增待办导出到手机系统日历——生成 `.ics` 的逻辑已经写好（`src/lib/ics.ts`），还没接到界面上（没有"添加到日历"按钮），下次继续
+- [x] 阶段5：新增待办导出到手机系统日历——`src/lib/ics.ts` 生成 `.ics`，待办列表里日期+时间都填了的条目右边会出现一个小日历图标，点了优先调手机系统分享面板一步加到日历，不支持分享的浏览器会退化成下载 `.ics` 文件
 - [x] 阶段6：PWA 化 + 正式部署上线，线上地址：**https://demonqimo-arch.github.io/**（GitHub Pages + GitHub Actions 自动构建部署，每次 `git push` 到 `main` 分支会自动重新构建上线，工作流见 `.github/workflows/deploy.yml`）
 
 ## 本地运行（在这台 WSL 环境里）
