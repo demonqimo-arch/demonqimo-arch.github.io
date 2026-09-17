@@ -13,7 +13,11 @@ export function DayView() {
   const tasks = useTasksOnDate(dateIso)
   const { toggleDone } = useTaskStore()
 
+  const todayIso = format(new Date(), 'yyyy-MM-dd')
+  const isToday = dateIso === todayIso
+
   const shiftDay = (delta: number) => setDateIso(format(addDays(date, delta), 'yyyy-MM-dd'))
+  const goToToday = () => setDateIso(todayIso)
 
   return (
     <div className="flex flex-col gap-4 px-4 pt-4">
@@ -27,7 +31,14 @@ export function DayView() {
         </button>
         <div className="text-center">
           <h1 className="text-base font-semibold tracking-tight">{format(date, 'yyyy年MM月dd日')}</h1>
-          <p className="text-xs text-ink-muted">{format(date, 'EEEE', { locale: zhCN })}</p>
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-xs text-ink-muted">{format(date, 'EEEE', { locale: zhCN })}</p>
+            {!isToday && (
+              <button onClick={goToToday} className="text-xs font-medium text-accent">
+                回到今天
+              </button>
+            )}
+          </div>
         </div>
         <button
           onClick={() => shiftDay(1)}
