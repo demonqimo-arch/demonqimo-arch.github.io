@@ -1,13 +1,17 @@
 import { addDays, format, parseISO, startOfWeek } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { useNavigate } from 'react-router-dom'
+import { TaskList } from '../components/TaskList'
 import { WeekDayColumn } from '../components/WeekDayColumn'
 import { useSelectedDate } from '../hooks/useSelectedDate'
-import { useTasksInRange } from '../hooks/useTasks'
+import { useTasksInRange, useTasksOnDate } from '../hooks/useTasks'
+import { getHolidayBadge } from '../lib/holidays'
+import { useTaskStore } from '../store/TaskStore'
 
 export function WeekView() {
   const { dateIso, setDateIso } = useSelectedDate()
   const navigate = useNavigate()
+  const { toggleDone } = useTaskStore()
   const selected = parseISO(dateIso)
   const weekStart = startOfWeek(selected, { weekStartsOn: 1 })
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -16,6 +20,7 @@ export function WeekView() {
   const rangeStart = format(days[0], 'yyyy-MM-dd')
   const rangeEnd = format(days[6], 'yyyy-MM-dd')
   const tasks = useTasksInRange(rangeStart, rangeEnd)
+  const selectedDayTasks = useTasksOnDate(dateIso)
 
   const goToDay = (iso: string) => {
     setDateIso(iso)
@@ -31,6 +36,7 @@ export function WeekView() {
         {days.map((day) => {
           const iso = format(day, 'yyyy-MM-dd')
           const dayTasks = tasks.filter((t) => t.dueDate === iso)
+          const weekday = day.getDay()
           return (
             <WeekDayColumn
               key={iso}
@@ -39,10 +45,19 @@ export function WeekView() {
               tasks={dayTasks}
               isToday={iso === todayIso}
               isSelected={iso === dateIso}
+              isWeekend={weekday === 0 || weekday === 6}
+              holiday={getHolidayBadge(iso)}
               onClick={() => goToDay(iso)}
             />
           )
         })}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-medium text-ink-muted">
+          {format(selected, 'M月d日')} {format(selected, 'EEEE', { locale: zhCN })} 待办
+        </p>
+        <TaskList tasks={selectedDayTasks} onToggle={toggleDone} />
       </div>
     </div>
   )
