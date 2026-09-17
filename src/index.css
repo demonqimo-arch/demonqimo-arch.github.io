@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --color-accent: #5b4fe8;
+  --color-accent-soft: #eeecfd;
+  --color-surface: #ffffff;
+  --color-canvas: #f5f4f9;
+  --color-ink: #201c30;
+  --color-ink-muted: #928da3;
+  --color-line: #e9e7f0;
+  --color-done: #b7b3c4;
+
+  --shadow-card: 0 1px 2px rgba(32, 28, 48, 0.04), 0 6px 20px -10px rgba(32, 28, 48, 0.14);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-tap-highlight-color: transparent;
+}

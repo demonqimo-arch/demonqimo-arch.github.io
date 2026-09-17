@@ -1,0 +1,49 @@
+import { addDays, format, parseISO, startOfWeek } from 'date-fns'
+import { zhCN } from 'date-fns/locale'
+import { useNavigate } from 'react-router-dom'
+import { WeekDayColumn } from '../components/WeekDayColumn'
+import { useSelectedDate } from '../hooks/useSelectedDate'
+import { useTasksInRange } from '../hooks/useTasks'
+
+export function WeekView() {
+  const { dateIso, setDateIso } = useSelectedDate()
+  const navigate = useNavigate()
+  const selected = parseISO(dateIso)
+  const weekStart = startOfWeek(selected, { weekStartsOn: 1 })
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  const todayIso = format(new Date(), 'yyyy-MM-dd')
+
+  const rangeStart = format(days[0], 'yyyy-MM-dd')
+  const rangeEnd = format(days[6], 'yyyy-MM-dd')
+  const tasks = useTasksInRange(rangeStart, rangeEnd)
+
+  const goToDay = (iso: string) => {
+    setDateIso(iso)
+    navigate(`/day?date=${iso}`)
+  }
+
+  return (
+    <div className="flex flex-col gap-4 px-4 pt-4">
+      <h1 className="text-base font-semibold tracking-tight">
+        {format(weekStart, 'yyyy年MM月')} 第{format(weekStart, 'w')}周
+      </h1>
+      <div className="grid grid-cols-7 gap-1.5">
+        {days.map((day) => {
+          const iso = format(day, 'yyyy-MM-dd')
+          const dayTasks = tasks.filter((t) => t.dueDate === iso)
+          return (
+            <WeekDayColumn
+              key={iso}
+              weekdayLabel={format(day, 'EEE', { locale: zhCN })}
+              dayLabel={format(day, 'd')}
+              tasks={dayTasks}
+              isToday={iso === todayIso}
+              isSelected={iso === dateIso}
+              onClick={() => goToDay(iso)}
+            />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
