@@ -64,10 +64,15 @@ npm run dev
 - `empty-state.png` — 当天没有待办时的插画，用的 `houge.png`
 - `all-done.png` — 当天待办全部完成时的庆祝插画，用的 `caishenbaoyou.png`
 
-## 每月背景图（彼得兔 / 爱丽丝梦游仙境）
+## App 背景图（蜡笔小新）
 
-App 整体背景每个月自动换一张图（`src/components/MonthlyBackdrop.tsx` 按当前真实月份取图，很淡的透明度铺在最底层，不影响卡片内容阅读）。
+`src/components/MonthlyBackdrop.tsx`（组件名是历史遗留，实际已经不是"每月"了）铺在最底层的固定背景，很淡的透明度，不影响卡片内容阅读，按屏幕宽度响应式切换：
 
-用的是《彼得兔的故事》（Beatrix Potter，1902）水彩原图和《爱丽丝梦游仙境》（John Tenniel，1865）版画原图，两者都已经进入公共领域（Public Domain），图片来自维基共享资源（Wikimedia Commons）。文件存在 `src/assets/backgrounds/month-01-xxx` ~ `month-12-xxx`（文件名后缀是 `alice` 还是 `peter` 就是当月用的哪个角色，不是严格按奇偶月交替，想换某个月的图可以直接告诉我"换掉第几个月的背景"）。取图逻辑见 `src/lib/monthlyBackground.ts`。
+- 手机宽度（`<768px`）：`src/assets/backdrop/mobile.webp`
+- 电脑宽度（`≥768px`）：`src/assets/backdrop/desktop.jpg`
+
+两张都是蜡笔小新题材，用户自己下载提供、个人使用不分发。原图备份在项目根目录 `picture_frz/`（`diannao-xiaoxin.jpg`/`shouji-xiaoxin.webp`）。
+
+**历史记录**：这之前是"每月自动换一张彼得兔/爱丽丝梦游仙境公共领域插图"的轮换机制，2026-09-17 应用户要求彻底替换成固定的蜡笔小新背景，不再按月轮换。
 
 原图放在项目根目录 `picture_frz/` 里备份，`hezhao2.png` 暂时没用上，留着以后想加新的小图标时可以再裁。
