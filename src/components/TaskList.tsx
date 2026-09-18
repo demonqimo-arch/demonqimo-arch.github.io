@@ -6,10 +6,11 @@ import { TaskItem } from './TaskItem'
 interface Props {
   tasks: Task[]
   onToggle: (id: string) => void
+  onEdit?: (task: Task) => void
   emptyText?: string
 }
 
-export function TaskList({ tasks, onToggle, emptyText = '这一天还没有待办' }: Props) {
+export function TaskList({ tasks, onToggle, onEdit, emptyText = '这一天还没有待办' }: Props) {
   if (tasks.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-6">
@@ -31,7 +32,7 @@ export function TaskList({ tasks, onToggle, emptyText = '这一天还没有待�
       )}
       <ul className="flex flex-col gap-2">
         {tasks.map((task) => (
-          <TaskItem key={task._id} task={task} onToggle={onToggle} />
+          <TaskItem key={task._id} task={task} onToggle={onToggle} onEdit={onEdit} />
         ))}
       </ul>
     </div>

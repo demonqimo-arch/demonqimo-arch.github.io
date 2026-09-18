@@ -1,17 +1,21 @@
 import { addDays, format, parseISO, startOfWeek } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EditTaskSheet } from '../components/EditTaskSheet'
 import { TaskList } from '../components/TaskList'
 import { WeekDayColumn } from '../components/WeekDayColumn'
 import { useSelectedDate } from '../hooks/useSelectedDate'
 import { useTasksInRange, useTasksOnDate } from '../hooks/useTasks'
 import { getHolidayBadge } from '../lib/holidays'
 import { useTaskStore } from '../store/TaskStore'
+import type { Task } from '../types/task'
 
 export function WeekView() {
   const { dateIso, setDateIso } = useSelectedDate()
   const navigate = useNavigate()
-  const { toggleDone } = useTaskStore()
+  const { toggleDone, updateTask } = useTaskStore()
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
   const selected = parseISO(dateIso)
   const weekStart = startOfWeek(selected, { weekStartsOn: 1 })
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -57,8 +61,10 @@ export function WeekView() {
         <p className="text-xs font-medium text-ink-muted">
           {format(selected, 'M月d日')} {format(selected, 'EEEE', { locale: zhCN })} 待办
         </p>
-        <TaskList tasks={selectedDayTasks} onToggle={toggleDone} />
+        <TaskList tasks={selectedDayTasks} onToggle={toggleDone} onEdit={setEditingTask} />
       </div>
+
+      <EditTaskSheet task={editingTask} onClose={() => setEditingTask(null)} onSave={updateTask} />
     </div>
   )
 }

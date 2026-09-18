@@ -1,17 +1,21 @@
 import { addDays, format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
+import { EditTaskSheet } from '../components/EditTaskSheet'
 import { HuangLiCard } from '../components/HuangLiCard'
 import { TaskList } from '../components/TaskList'
 import { useSelectedDate } from '../hooks/useSelectedDate'
 import { useTasksOnDate } from '../hooks/useTasks'
 import { useTaskStore } from '../store/TaskStore'
+import type { Task } from '../types/task'
 
 export function DayView() {
   const { dateIso, setDateIso } = useSelectedDate()
   const date = parseISO(dateIso)
   const tasks = useTasksOnDate(dateIso)
-  const { toggleDone } = useTaskStore()
+  const { toggleDone, updateTask } = useTaskStore()
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
 
   const todayIso = format(new Date(), 'yyyy-MM-dd')
   const isToday = dateIso === todayIso
@@ -49,7 +53,9 @@ export function DayView() {
         </button>
       </div>
       <HuangLiCard date={date} />
-      <TaskList tasks={tasks} onToggle={toggleDone} />
+      <TaskList tasks={tasks} onToggle={toggleDone} onEdit={setEditingTask} />
+
+      <EditTaskSheet task={editingTask} onClose={() => setEditingTask(null)} onSave={updateTask} />
     </div>
   )
 }
