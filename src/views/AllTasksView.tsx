@@ -28,7 +28,7 @@ function sortByDate(list: Task[], direction: 'asc' | 'desc') {
 }
 
 export function AllTasksView() {
-  const { tasks, tags, toggleDone, updateTask } = useTaskStore()
+  const { tasks, tags, toggleDone, updateTask, deleteTask } = useTaskStore()
   const [filter, setFilter] = useState<Filter>('all')
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -120,7 +120,7 @@ export function AllTasksView() {
         </div>
       )}
 
-      <EditTaskSheet task={editingTask} onClose={() => setEditingTask(null)} onSave={updateTask} />
+      <EditTaskSheet task={editingTask} onClose={() => setEditingTask(null)} onSave={updateTask} onDelete={deleteTask} />
     </div>
   )
 }

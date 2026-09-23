@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import { fetchTasks, insertTask, updateTaskRow } from '../lib/tasksApi'
+import { deleteTaskRow, fetchTasks, insertTask, updateTaskRow } from '../lib/tasksApi'
 import type { Task } from '../types/task'
 
 interface TaskStoreValue {
@@ -10,6 +10,7 @@ interface TaskStoreValue {
   toggleDone: (id: string) => void
   addTask: (task: Omit<Task, '_id' | 'createdAt' | 'updatedAt'>) => void
   updateTask: (id: string, changes: Omit<Task, '_id' | 'createdAt' | 'updatedAt'>) => void
+  deleteTask: (id: string) => void
 }
 
 const TaskStoreContext = createContext<TaskStoreValue | null>(null)
@@ -27,6 +28,7 @@ export function TaskStoreProvider({ children }: { children: ReactNode }) {
       updateTaskRow(id, changes),
     onSuccess: invalidate,
   })
+  const deleteMutation = useMutation({ mutationFn: deleteTaskRow, onSuccess: invalidate })
 
   const value = useMemo<TaskStoreValue>(
     () => ({
@@ -41,8 +43,9 @@ export function TaskStoreProvider({ children }: { children: ReactNode }) {
       },
       addTask: (task) => addMutation.mutate(task),
       updateTask: (id, changes) => updateMutation.mutate({ id, changes }),
+      deleteTask: (id) => deleteMutation.mutate(id),
     }),
-    [tasks, isLoading, addMutation, updateMutation],
+    [tasks, isLoading, addMutation, updateMutation, deleteMutation],
   )
 
   return <TaskStoreContext.Provider value={value}>{children}</TaskStoreContext.Provider>

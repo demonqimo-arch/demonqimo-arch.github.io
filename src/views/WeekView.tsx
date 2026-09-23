@@ -14,7 +14,7 @@ import type { Task } from '../types/task'
 export function WeekView() {
   const { dateIso, setDateIso } = useSelectedDate()
   const navigate = useNavigate()
-  const { toggleDone, updateTask } = useTaskStore()
+  const { toggleDone, updateTask, deleteTask } = useTaskStore()
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const selected = parseISO(dateIso)
   const weekStart = startOfWeek(selected, { weekStartsOn: 1 })
@@ -64,7 +64,7 @@ export function WeekView() {
         <TaskList tasks={selectedDayTasks} onToggle={toggleDone} onEdit={setEditingTask} />
       </div>
 
-      <EditTaskSheet task={editingTask} onClose={() => setEditingTask(null)} onSave={updateTask} />
+      <EditTaskSheet task={editingTask} onClose={() => setEditingTask(null)} onSave={updateTask} onDelete={deleteTask} />
     </div>
   )
 }

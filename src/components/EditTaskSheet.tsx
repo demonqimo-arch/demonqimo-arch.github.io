@@ -1,4 +1,5 @@
 import { Dialog, DialogPanel, DialogTitle, Switch } from '@headlessui/react'
+import { Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTaskStore } from '../store/TaskStore'
 import { REMINDER_LEAD_OPTIONS, type Task } from '../types/task'
@@ -7,6 +8,7 @@ interface Props {
   task: Task | null
   onClose: () => void
   onSave: (id: string, changes: Omit<Task, '_id' | 'createdAt' | 'updatedAt'>) => void
+  onDelete: (id: string) => void
 }
 
 function minutesToTimeString(minutes: number | null) {
@@ -16,7 +18,7 @@ function minutesToTimeString(minutes: number | null) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-export function EditTaskSheet({ task, onClose, onSave }: Props) {
+export function EditTaskSheet({ task, onClose, onSave, onDelete }: Props) {
   const { tags: existingTags } = useTaskStore()
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
@@ -57,13 +59,28 @@ export function EditTaskSheet({ task, onClose, onSave }: Props) {
     onClose()
   }
 
+  const handleDelete = () => {
+    if (!window.confirm(`确定删除"${task.title}"吗？删除后无法恢复。`)) return
+    onDelete(task._id)
+    onClose()
+  }
+
   return (
     <Dialog open={!!task} onClose={onClose} className="relative z-20">
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
       <div className="fixed inset-x-0 bottom-0 flex justify-center">
         <DialogPanel className="w-full max-w-md rounded-t-3xl bg-surface p-5 pb-8">
           <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-line" />
-          <DialogTitle className="text-base font-semibold tracking-tight">编辑待办</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-base font-semibold tracking-tight">编辑待办</DialogTitle>
+            <button
+              onClick={handleDelete}
+              aria-label="删除待办"
+              className="rounded-full p-1.5 text-ink-muted active:scale-95"
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
 
           <div className="mt-4 flex flex-col gap-3">
             <input

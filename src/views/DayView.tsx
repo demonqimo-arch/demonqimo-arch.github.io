@@ -14,7 +14,7 @@ export function DayView() {
   const { dateIso, setDateIso } = useSelectedDate()
   const date = parseISO(dateIso)
   const tasks = useTasksOnDate(dateIso)
-  const { toggleDone, updateTask } = useTaskStore()
+  const { toggleDone, updateTask, deleteTask } = useTaskStore()
   const [editingTask, setEditingTask] = useState<Task | null>(null)
 
   const todayIso = format(new Date(), 'yyyy-MM-dd')
@@ -55,7 +55,7 @@ export function DayView() {
       <HuangLiCard date={date} />
       <TaskList tasks={tasks} onToggle={toggleDone} onEdit={setEditingTask} />
 
-      <EditTaskSheet task={editingTask} onClose={() => setEditingTask(null)} onSave={updateTask} />
+      <EditTaskSheet task={editingTask} onClose={() => setEditingTask(null)} onSave={updateTask} onDelete={deleteTask} />
     </div>
   )
 }

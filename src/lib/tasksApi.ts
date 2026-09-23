@@ -66,3 +66,8 @@ export async function updateTaskRow(id: string, changes: Omit<Task, '_id' | 'cre
   if (error) throw error
   return rowToTask(data as TaskRow)
 }
+
+export async function deleteTaskRow(id: string): Promise<void> {
+  const { error } = await supabase.from('tasks').delete().eq('id', id)
+  if (error) throw error
+}
