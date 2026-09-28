@@ -40,10 +40,20 @@ npm run dev
 - 构建时用到的 `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` 存在仓库的 **Settings → Secrets and variables → Actions** 里，跟本地的 `.env.local` 是分开配置的两份（改了本地记得同步一下仓库里的，虽然这两个值目前应该不会变）
 - 仓库地址：`github.com/demonqimo-arch/demonqimo-arch.github.io`，用的是 GitHub 的"用户站点"特殊仓库名，所以网址是根域名不带路径
 
+### Supabase 保活机制
+
+Supabase 免费项目超过约1周没有访问会自动休眠，休眠后第一次访问要等它醒过来（能到十几秒甚至更久），体验上就是"网页长时间无反应/登录不上"。
+
+`.github/workflows/keep-supabase-alive.yml` 每3天自动跑一次，去查一下数据库、顺便往仓库提交一条时间戳记录（`.github/keepalive/last-ping.txt`），保证两件事都不会发生：
+1. Supabase 项目不会因为长期没访问被休眠
+2. 仓库不会因为60天没有代码提交而被 GitHub 自动停用定时任务
+
+**唯一要注意的点**：如果以后这个项目改动很少、连续60天都没有正常的功能开发提交，理论上还是要靠这个保活任务自己的提交撑着仓库的"活跃度"——目前看这个机制本身是自洽的（它自己一直在提交），不需要额外操心，但如果哪天发现网页又长时间打不开，先来看这个工作流最近有没有正常跑。
+
 ## 目录结构
 
 - `src/types/task.ts` — 待办数据结构定义
-- `src/store/TaskStore.tsx` — 阶段1临时用的本地假数据存储（阶段3会替换成真实的 Supabase 数据读写，替换后其余组件基本不用改）
+- `src/store/TaskStore.tsx` — 用 TanStack Query 对接 Supabase 的真实数据读写（增删改查 + 标签统计）
 - `src/hooks/` — `useTasksInRange`/`useTasksOnDate`（按日期范围取待办）、`useSelectedDate`（当前选中日期，存在网址参数里）
 - `src/views/` — 日/周/月/年四个视图
 - `src/components/` — 黄历卡片、待办列表项、新增待办弹窗、底部导航等可复用组件
