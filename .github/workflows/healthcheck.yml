@@ -1,0 +1,71 @@
+name: Health Check
+
+on:
+  schedule:
+    - cron: '3 0 * * *' # 北京时间每天 08:03（顺带保持Supabase项目活跃，比每3天更频繁，不再需要单独的保活任务）
+    - cron: '3 12 * * *' # 北京时间每天 20:03
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      failed: ${{ steps.check.outputs.failed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 检测网站和数据库是否正常
+        id: check
+        run: |
+          set +e
+          SITE_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 "https://demonqimo-arch.github.io/")
+          SITE_TIME=$(curl -s -o /dev/null -w "%{time_total}" --max-time 25 "https://demonqimo-arch.github.io/")
+          SUPA_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 "${{ secrets.VITE_SUPABASE_URL }}/auth/v1/settings" -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}")
+          SUPA_TIME=$(curl -s -o /dev/null -w "%{time_total}" --max-time 25 "${{ secrets.VITE_SUPABASE_URL }}/auth/v1/settings" -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}")
+
+          echo "site_code=$SITE_CODE" >> "$GITHUB_OUTPUT"
+          echo "site_time=$SITE_TIME" >> "$GITHUB_OUTPUT"
+          echo "supa_code=$SUPA_CODE" >> "$GITHUB_OUTPUT"
+          echo "supa_time=$SUPA_TIME" >> "$GITHUB_OUTPUT"
+
+          FAILED=0
+          [ "$SITE_CODE" = "200" ] || FAILED=1
+          [ "$SUPA_CODE" = "200" ] || FAILED=1
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+
+      - name: 记录检测结果
+        run: |
+          mkdir -p .github/healthcheck
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          STATUS="OK"
+          [ "${{ steps.check.outputs.failed }}" = "1" ] && STATUS="FAIL"
+          echo "$TS | 网站:${{ steps.check.outputs.site_code }}(${{ steps.check.outputs.site_time }}s) | Supabase:${{ steps.check.outputs.supa_code }}(${{ steps.check.outputs.supa_time }}s) | $STATUS" >> .github/healthcheck/log.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/healthcheck/log.txt
+          git commit -m "healthcheck: $TS ($STATUS)" || true
+          git push
+
+      - name: 检测失败时创建 Issue 记录
+        if: steps.check.outputs.failed == '1'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `健康检查失败 - ${new Date().toISOString()}`,
+              body: [
+                '自动健康检查发现异常：',
+                '',
+                `- 网站 (https://demonqimo-arch.github.io/)：HTTP ${{ steps.check.outputs.site_code }}，耗时 ${{ steps.check.outputs.site_time }}s`,
+                `- Supabase 数据库接口：HTTP ${{ steps.check.outputs.supa_code }}，耗时 ${{ steps.check.outputs.supa_time }}s`,
+                '',
+                '常见原因：Supabase 项目刚从休眠唤醒响应慢、网络波动、或服务真的出了问题。',
+                '可以去 Actions 页面看这次运行的完整日志进一步排查。',
+              ].join('\n'),
+            })
