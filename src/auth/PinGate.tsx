@@ -21,8 +21,14 @@ export function PinGate({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithPassword({ email: OWNER_EMAIL, password: pin })
     setSubmitting(false)
     if (error) {
-      setError('PIN 不对，再试一次')
-      setPin('')
+      const isWrongPin = error.status === 400 && error.code === 'invalid_credentials'
+      if (isWrongPin) {
+        setError('PIN 不对，再试一次')
+        setPin('')
+      } else {
+        // 网络慢/服务暂时唤醒中等非密码错误，不清空已输入的PIN，提示明确一点，用户直接重试即可
+        setError('连接较慢或暂时不可用，请稍等几秒再试一次（不是PIN错了）')
+      }
     }
   }
 
