@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { logLoginAttempt } from '../lib/loginLog'
 import { supabase } from '../lib/supabase'
 import { useAuthSession } from './useAuthSession'
 
@@ -18,8 +19,12 @@ export function PinGate({ children }: { children: ReactNode }) {
     e.preventDefault()
     setSubmitting(true)
     setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email: OWNER_EMAIL, password: pin })
+    const trimmedPin = pin.trim()
+    const { error } = await supabase.auth.signInWithPassword({ email: OWNER_EMAIL, password: trimmedPin })
     setSubmitting(false)
+
+    logLoginAttempt(!error, error)
+
     if (error) {
       const isWrongPin = error.status === 400 && error.code === 'invalid_credentials'
       if (isWrongPin) {
