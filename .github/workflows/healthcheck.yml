@@ -2,13 +2,16 @@ name: Health Check
 
 on:
   schedule:
-    - cron: '3 0 * * *' # 北京时间每天 08:03（顺带保持Supabase项目活跃，比每3天更频繁，不再需要单独的保活任务）
-    - cron: '3 12 * * *' # 北京时间每天 20:03
+    - cron: '7 * * * *' # 每小时一次（避开整点，减少GitHub那边排队延迟），顺带保持Supabase项目活跃
   workflow_dispatch:
 
 permissions:
   contents: write
   issues: write
+
+concurrency:
+  group: healthcheck
+  cancel-in-progress: false
 
 jobs:
   check:
@@ -50,22 +53,46 @@ jobs:
           git commit -m "healthcheck: $TS ($STATUS)" || true
           git push
 
-      - name: 检测失败时创建 Issue 记录
+      - name: 检测失败时创建 Issue 记录（同一次故障期间只开一条，避免刷屏）
         if: steps.check.outputs.failed == '1'
         uses: actions/github-script@v7
         with:
           script: |
-            await github.rest.issues.create({
+            const marker = '<!-- healthcheck-failure -->'
+            const { data: openIssues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `健康检查失败 - ${new Date().toISOString()}`,
-              body: [
-                '自动健康检查发现异常：',
-                '',
-                `- 网站 (https://demonqimo-arch.github.io/)：HTTP ${{ steps.check.outputs.site_code }}，耗时 ${{ steps.check.outputs.site_time }}s`,
-                `- Supabase 数据库接口：HTTP ${{ steps.check.outputs.supa_code }}，耗时 ${{ steps.check.outputs.supa_time }}s`,
-                '',
-                '常见原因：Supabase 项目刚从休眠唤醒响应慢、网络波动、或服务真的出了问题。',
-                '可以去 Actions 页面看这次运行的完整日志进一步排查。',
-              ].join('\n'),
+              state: 'open',
             })
+            const existing = openIssues.find((i) => i.body && i.body.includes(marker))
+            const timestamp = new Date().toISOString()
+            const detail = [
+              `- 网站 (https://demonqimo-arch.github.io/)：HTTP ${{ steps.check.outputs.site_code }}，耗时 ${{ steps.check.outputs.site_time }}s`,
+              `- Supabase 数据库接口：HTTP ${{ steps.check.outputs.supa_code }}，耗时 ${{ steps.check.outputs.supa_time }}s`,
+            ].join('\n')
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `${timestamp} 仍然异常：\n${detail}`,
+              })
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `健康检查失败 - ${timestamp}`,
+                body: [
+                  marker,
+                  '自动健康检查发现异常：',
+                  '',
+                  detail,
+                  '',
+                  '常见原因：Supabase 项目刚从休眠唤醒响应慢、网络波动、或服务真的出了问题。',
+                  '可以去 Actions 页面看这次运行的完整日志进一步排查。',
+                  '',
+                  '（同一次故障期间后续的失败会追加评论在这条 Issue 下面，不会重复开新的；恢复正常后请手动关闭这条 Issue，下次故障会重新开一条新的）',
+                ].join('\n'),
+              })
+            }
