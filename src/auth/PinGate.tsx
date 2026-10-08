@@ -1,9 +1,11 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { logLoginAttempt } from '../lib/loginLog'
 import { supabase } from '../lib/supabase'
+import { TimeoutError, withTimeout } from '../lib/withTimeout'
 import { useAuthSession } from './useAuthSession'
 
 const OWNER_EMAIL = 'owner@xingcheng.app'
+const SIGN_IN_TIMEOUT_MS = 15000
 
 export function PinGate({ children }: { children: ReactNode }) {
   const { session, loading } = useAuthSession()
@@ -11,7 +13,13 @@ export function PinGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  if (loading) return null
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-canvas px-6">
+        <p className="text-sm text-ink-muted">正在连接…</p>
+      </div>
+    )
+  }
 
   if (session) return <>{children}</>
 
@@ -20,20 +28,36 @@ export function PinGate({ children }: { children: ReactNode }) {
     setSubmitting(true)
     setError('')
     const trimmedPin = pin.trim()
-    const { error } = await supabase.auth.signInWithPassword({ email: OWNER_EMAIL, password: trimmedPin })
-    setSubmitting(false)
 
-    logLoginAttempt(!error, error)
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email: OWNER_EMAIL, password: trimmedPin }),
+        SIGN_IN_TIMEOUT_MS,
+      )
+      setSubmitting(false)
 
-    if (error) {
-      const isWrongPin = error.status === 400 && error.code === 'invalid_credentials'
-      if (isWrongPin) {
-        setError('PIN 不对，再试一次')
-        setPin('')
+      if (error) {
+        logLoginAttempt(false, error.status ?? null, error.code ?? null, error.message)
+        const isWrongPin = error.status === 400 && error.code === 'invalid_credentials'
+        if (isWrongPin) {
+          setError('PIN 不对，再试一次')
+          setPin('')
+        } else {
+          // 网络慢/服务暂时唤醒中等非密码错误，不清空已输入的PIN，提示明确一点，用户直接重试即可
+          setError('连接较慢或暂时不可用，请稍等几秒再试一次（不是PIN错了）')
+        }
       } else {
-        // 网络慢/服务暂时唤醒中等非密码错误，不清空已输入的PIN，提示明确一点，用户直接重试即可
-        setError('连接较慢或暂时不可用，请稍等几秒再试一次（不是PIN错了）')
+        logLoginAttempt(true, null, null, null)
       }
+    } catch (err) {
+      setSubmitting(false)
+      const isTimeout = err instanceof TimeoutError
+      logLoginAttempt(false, null, isTimeout ? 'client_timeout' : 'client_error', String(err))
+      setError(
+        isTimeout
+          ? `连接超时（超过${SIGN_IN_TIMEOUT_MS / 1000}秒无响应），请检查网络后重试（不是PIN错了）`
+          : '连接出错，请稍后重试',
+      )
     }
   }
 
