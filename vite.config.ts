@@ -25,13 +25,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.(tcb|tencentcloudapi)\.com\/.*/,
-            handler: 'NetworkFirst',
-            options: { cacheName: 'cloudbase-api', networkTimeoutSeconds: 5 },
-          },
-        ],
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ],

@@ -7,12 +7,19 @@ import { useAuthSession } from './useAuthSession'
 
 const OWNER_EMAIL = 'owner@xingcheng.app'
 const SIGN_IN_TIMEOUT_MS = 15000
+const MAX_RETRIES = 2 // 网络类错误最多重试2次（总共最多试3次）
+const RETRY_DELAY_MS = 1500
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 export function PinGate({ children }: { children: ReactNode }) {
   const { session, loading } = useAuthSession()
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
   const [showLog, setShowLog] = useState(false)
   const [localLog, setLocalLog] = useState<LocalLoginLogEntry[]>([])
 
@@ -30,37 +37,53 @@ export function PinGate({ children }: { children: ReactNode }) {
     e.preventDefault()
     setSubmitting(true)
     setError('')
+    setRetryCount(0)
     const trimmedPin = pin.trim()
 
-    try {
-      const { error } = await withTimeout(
-        supabase.auth.signInWithPassword({ email: OWNER_EMAIL, password: trimmedPin }),
-        SIGN_IN_TIMEOUT_MS,
-      )
-      setSubmitting(false)
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      setRetryCount(attempt)
+      try {
+        const { error } = await withTimeout(
+          supabase.auth.signInWithPassword({ email: OWNER_EMAIL, password: trimmedPin }),
+          SIGN_IN_TIMEOUT_MS,
+        )
 
-      if (error) {
+        if (!error) {
+          setSubmitting(false)
+          logLoginAttempt(true, null, null, null)
+          return
+        }
+
         logLoginAttempt(false, error.status ?? null, error.code ?? null, error.message)
         const isWrongPin = error.status === 400 && error.code === 'invalid_credentials'
         if (isWrongPin) {
+          // 真的密码错，不用重试
+          setSubmitting(false)
           setError('PIN 不对，再试一次')
           setPin('')
-        } else {
-          // 网络慢/服务暂时唤醒中等非密码错误，不清空已输入的PIN，提示明确一点，用户直接重试即可
-          setError('连接较慢或暂时不可用，请稍等几秒再试一次（不是PIN错了）')
+          return
         }
-      } else {
-        logLoginAttempt(true, null, null, null)
+
+        if (attempt < MAX_RETRIES) {
+          await sleep(RETRY_DELAY_MS)
+          continue
+        }
+        setSubmitting(false)
+        setError('连接较慢或暂时不可用，已自动重试几次仍失败，请稍后再试（不是PIN错了）')
+      } catch (err) {
+        const isTimeout = err instanceof TimeoutError
+        logLoginAttempt(false, null, isTimeout ? 'client_timeout' : 'client_error', String(err))
+        if (attempt < MAX_RETRIES) {
+          await sleep(RETRY_DELAY_MS)
+          continue
+        }
+        setSubmitting(false)
+        setError(
+          isTimeout
+            ? '连接超时，已自动重试几次仍无响应，请检查网络后再试（不是PIN错了）'
+            : '连接出错，已自动重试几次仍失败，请稍后再试',
+        )
       }
-    } catch (err) {
-      setSubmitting(false)
-      const isTimeout = err instanceof TimeoutError
-      logLoginAttempt(false, null, isTimeout ? 'client_timeout' : 'client_error', String(err))
-      setError(
-        isTimeout
-          ? `连接超时（超过${SIGN_IN_TIMEOUT_MS / 1000}秒无响应），请检查网络后重试（不是PIN错了）`
-          : '连接出错，请稍后重试',
-      )
     }
   }
 
@@ -86,7 +109,7 @@ export function PinGate({ children }: { children: ReactNode }) {
           disabled={submitting || !pin}
           className="rounded-xl bg-accent py-2 text-sm font-medium text-white disabled:opacity-50"
         >
-          {submitting ? '验证中…' : '解锁'}
+          {submitting ? (retryCount > 0 ? `重试中…(${retryCount}/${MAX_RETRIES})` : '验证中…') : '解锁'}
         </button>
 
         <button
