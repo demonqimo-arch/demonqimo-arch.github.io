@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { getLocalAttempts, type LocalLoginLogEntry } from '../lib/localLoginLog'
 import { logLoginAttempt } from '../lib/loginLog'
 import { supabase } from '../lib/supabase'
 import { TimeoutError, withTimeout } from '../lib/withTimeout'
@@ -12,6 +13,8 @@ export function PinGate({ children }: { children: ReactNode }) {
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [showLog, setShowLog] = useState(false)
+  const [localLog, setLocalLog] = useState<LocalLoginLogEntry[]>([])
 
   if (loading) {
     return (
@@ -85,6 +88,32 @@ export function PinGate({ children }: { children: ReactNode }) {
         >
           {submitting ? '验证中…' : '解锁'}
         </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setLocalLog(getLocalAttempts())
+            setShowLog((v) => !v)
+          }}
+          className="text-center text-[11px] text-ink-muted underline"
+        >
+          {showLog ? '收起诊断日志' : '查看本地诊断日志'}
+        </button>
+
+        {showLog && (
+          <div className="max-h-48 overflow-y-auto rounded-xl bg-canvas p-2 text-[10px] text-ink-muted">
+            {localLog.length === 0 ? (
+              <p>本机还没有记录</p>
+            ) : (
+              localLog.map((entry, i) => (
+                <p key={i} className="border-b border-line py-1 last:border-0">
+                  {entry.time} | {entry.success ? '成功' : '失败'}
+                  {!entry.success && ` | status:${entry.status} code:${entry.code} msg:${entry.message}`}
+                </p>
+              ))
+            )}
+          </div>
+        )}
       </form>
     </div>
   )
