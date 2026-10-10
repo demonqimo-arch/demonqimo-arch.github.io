@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import { deleteTaskRow, fetchTasks, insertTask, updateTaskRow } from '../lib/tasksApi'
+import { fetchTasksFromWorker, saveTasksToWorker, type TasksPayload } from '../lib/workerApi'
 import type { Task } from '../types/task'
 
 interface TaskStoreValue {
@@ -17,18 +17,18 @@ const TaskStoreContext = createContext<TaskStoreValue | null>(null)
 
 export function TaskStoreProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
-  const { data, isLoading } = useQuery({ queryKey: ['tasks'], queryFn: fetchTasks })
-  const tasks = useMemo(() => data ?? [], [data])
+  const { data, isLoading } = useQuery({ queryKey: ['tasks'], queryFn: fetchTasksFromWorker })
+  const tasks = useMemo(() => data?.tasks ?? [], [data])
+  const sha = data?.sha ?? null
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['tasks'] })
-
-  const addMutation = useMutation({ mutationFn: insertTask, onSuccess: invalidate })
-  const updateMutation = useMutation({
-    mutationFn: ({ id, changes }: { id: string; changes: Omit<Task, '_id' | 'createdAt' | 'updatedAt'> }) =>
-      updateTaskRow(id, changes),
-    onSuccess: invalidate,
+  const saveMutation = useMutation({
+    mutationFn: (nextTasks: Task[]) => saveTasksToWorker(nextTasks, sha),
+    onSuccess: (newSha, nextTasks) => {
+      queryClient.setQueryData<TasksPayload>(['tasks'], { tasks: nextTasks, sha: newSha })
+    },
   })
-  const deleteMutation = useMutation({ mutationFn: deleteTaskRow, onSuccess: invalidate })
+
+  const now = () => new Date().toISOString()
 
   const value = useMemo<TaskStoreValue>(
     () => ({
@@ -36,16 +36,23 @@ export function TaskStoreProvider({ children }: { children: ReactNode }) {
       tags: Array.from(new Set(tasks.map((t) => t.tag).filter((tag): tag is string => !!tag))),
       isLoading,
       toggleDone: (id) => {
-        const task = tasks.find((t) => t._id === id)
-        if (!task) return
-        const { _id, createdAt, updatedAt, ...rest } = task
-        updateMutation.mutate({ id, changes: { ...rest, isDone: !task.isDone } })
+        const next = tasks.map((t) => (t._id === id ? { ...t, isDone: !t.isDone, updatedAt: now() } : t))
+        saveMutation.mutate(next)
       },
-      addTask: (task) => addMutation.mutate(task),
-      updateTask: (id, changes) => updateMutation.mutate({ id, changes }),
-      deleteTask: (id) => deleteMutation.mutate(id),
+      addTask: (task) => {
+        const newTask: Task = { ...task, _id: crypto.randomUUID(), createdAt: now(), updatedAt: now() }
+        saveMutation.mutate([...tasks, newTask])
+      },
+      updateTask: (id, changes) => {
+        const next = tasks.map((t) => (t._id === id ? { ...t, ...changes, updatedAt: now() } : t))
+        saveMutation.mutate(next)
+      },
+      deleteTask: (id) => {
+        const next = tasks.filter((t) => t._id !== id)
+        saveMutation.mutate(next)
+      },
     }),
-    [tasks, isLoading, addMutation, updateMutation, deleteMutation],
+    [tasks, isLoading, saveMutation],
   )
 
   return <TaskStoreContext.Provider value={value}>{children}</TaskStoreContext.Provider>

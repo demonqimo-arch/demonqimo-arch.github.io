@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "xingcheng-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-01-01",
+  "vars": {
+    "GITHUB_REPO": "demonqimo-arch/xingcheng-data",
+    "DATA_FILE_PATH": "tasks.json",
+    "ALLOWED_ORIGIN": "https://demonqimo-arch.github.io"
+  }
+}

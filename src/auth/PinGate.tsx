@@ -1,12 +1,9 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { getLocalAttempts, type LocalLoginLogEntry } from '../lib/localLoginLog'
-import { logLoginAttempt } from '../lib/loginLog'
-import { supabase } from '../lib/supabase'
-import { TimeoutError, withTimeout } from '../lib/withTimeout'
+import { recordLocalAttempt } from '../lib/localLoginLog'
+import { login, WorkerApiError } from '../lib/workerApi'
 import { useAuthSession } from './useAuthSession'
 
-const OWNER_EMAIL = 'owner@xingcheng.app'
-const SIGN_IN_TIMEOUT_MS = 15000
 const MAX_RETRIES = 2 // 网络类错误最多重试2次（总共最多试3次）
 const RETRY_DELAY_MS = 1500
 
@@ -15,7 +12,7 @@ function sleep(ms: number) {
 }
 
 export function PinGate({ children }: { children: ReactNode }) {
-  const { session, loading } = useAuthSession()
+  const { loggedIn, markLoggedIn } = useAuthSession()
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -23,15 +20,7 @@ export function PinGate({ children }: { children: ReactNode }) {
   const [showLog, setShowLog] = useState(false)
   const [localLog, setLocalLog] = useState<LocalLoginLogEntry[]>([])
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-canvas px-6">
-        <p className="text-sm text-ink-muted">正在连接…</p>
-      </div>
-    )
-  }
-
-  if (session) return <>{children}</>
+  if (loggedIn) return <>{children}</>
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -43,46 +32,29 @@ export function PinGate({ children }: { children: ReactNode }) {
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       setRetryCount(attempt)
       try {
-        const { error } = await withTimeout(
-          supabase.auth.signInWithPassword({ email: OWNER_EMAIL, password: trimmedPin }),
-          SIGN_IN_TIMEOUT_MS,
-        )
-
-        if (!error) {
-          setSubmitting(false)
-          logLoginAttempt(true, null, null, null)
-          return
-        }
-
-        logLoginAttempt(false, error.status ?? null, error.code ?? null, error.message)
-        const isWrongPin = error.status === 400 && error.code === 'invalid_credentials'
+        await login(trimmedPin)
+        setSubmitting(false)
+        recordLocalAttempt({ success: true, status: null, code: null, message: null })
+        markLoggedIn()
+        return
+      } catch (err) {
+        const isWrongPin = err instanceof WorkerApiError && err.status === 401
         if (isWrongPin) {
-          // 真的密码错，不用重试
           setSubmitting(false)
+          recordLocalAttempt({ success: false, status: 401, code: 'invalid_pin', message: null })
           setError('PIN 不对，再试一次')
           setPin('')
           return
         }
 
+        const message = err instanceof Error ? err.message : String(err)
+        recordLocalAttempt({ success: false, status: null, code: 'network_error', message })
         if (attempt < MAX_RETRIES) {
           await sleep(RETRY_DELAY_MS)
           continue
         }
         setSubmitting(false)
         setError('连接较慢或暂时不可用，已自动重试几次仍失败，请稍后再试（不是PIN错了）')
-      } catch (err) {
-        const isTimeout = err instanceof TimeoutError
-        logLoginAttempt(false, null, isTimeout ? 'client_timeout' : 'client_error', String(err))
-        if (attempt < MAX_RETRIES) {
-          await sleep(RETRY_DELAY_MS)
-          continue
-        }
-        setSubmitting(false)
-        setError(
-          isTimeout
-            ? '连接超时，已自动重试几次仍无响应，请检查网络后再试（不是PIN错了）'
-            : '连接出错，已自动重试几次仍失败，请稍后再试',
-        )
       }
     }
   }
