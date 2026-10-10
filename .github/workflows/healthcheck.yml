@@ -2,7 +2,7 @@ name: Health Check
 
 on:
   schedule:
-    - cron: '7 * * * *' # 每小时一次（避开整点，减少GitHub那边排队延迟），顺带保持Supabase项目活跃
+    - cron: '7 * * * *' # 每小时一次（避开整点，减少GitHub那边排队延迟）
   workflow_dispatch:
 
 permissions:
@@ -21,23 +21,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 检测网站和数据库是否正常
+      - name: 检测网站和 Worker 是否正常
         id: check
         run: |
           set +e
           SITE_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 "https://demonqimo-arch.github.io/")
           SITE_TIME=$(curl -s -o /dev/null -w "%{time_total}" --max-time 25 "https://demonqimo-arch.github.io/")
-          SUPA_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 "${{ secrets.VITE_SUPABASE_URL }}/auth/v1/settings" -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}")
-          SUPA_TIME=$(curl -s -o /dev/null -w "%{time_total}" --max-time 25 "${{ secrets.VITE_SUPABASE_URL }}/auth/v1/settings" -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}")
+          # Worker 的 /login 用一个假PIN探测，预期返回401说明Worker本身是活的（不需要用到真实PIN）
+          WORKER_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 -X POST "https://xingcheng-worker.3156400437.workers.dev/login" -H "Content-Type: application/json" -d '{"pin":"healthcheck-probe"}')
+          WORKER_TIME=$(curl -s -o /dev/null -w "%{time_total}" --max-time 25 -X POST "https://xingcheng-worker.3156400437.workers.dev/login" -H "Content-Type: application/json" -d '{"pin":"healthcheck-probe"}')
 
           echo "site_code=$SITE_CODE" >> "$GITHUB_OUTPUT"
           echo "site_time=$SITE_TIME" >> "$GITHUB_OUTPUT"
-          echo "supa_code=$SUPA_CODE" >> "$GITHUB_OUTPUT"
-          echo "supa_time=$SUPA_TIME" >> "$GITHUB_OUTPUT"
+          echo "worker_code=$WORKER_CODE" >> "$GITHUB_OUTPUT"
+          echo "worker_time=$WORKER_TIME" >> "$GITHUB_OUTPUT"
 
           FAILED=0
           [ "$SITE_CODE" = "200" ] || FAILED=1
-          [ "$SUPA_CODE" = "200" ] || FAILED=1
+          [ "$WORKER_CODE" = "401" ] || FAILED=1
           echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
 
       - name: 记录检测结果
@@ -46,7 +47,7 @@ jobs:
           TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           STATUS="OK"
           [ "${{ steps.check.outputs.failed }}" = "1" ] && STATUS="FAIL"
-          echo "$TS | 网站:${{ steps.check.outputs.site_code }}(${{ steps.check.outputs.site_time }}s) | Supabase:${{ steps.check.outputs.supa_code }}(${{ steps.check.outputs.supa_time }}s) | $STATUS" >> .github/healthcheck/log.txt
+          echo "$TS | 网站:${{ steps.check.outputs.site_code }}(${{ steps.check.outputs.site_time }}s) | Worker:${{ steps.check.outputs.worker_code }}(${{ steps.check.outputs.worker_time }}s) | $STATUS" >> .github/healthcheck/log.txt
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .github/healthcheck/log.txt
@@ -68,7 +69,7 @@ jobs:
             const timestamp = new Date().toISOString()
             const detail = [
               `- 网站 (https://demonqimo-arch.github.io/)：HTTP ${{ steps.check.outputs.site_code }}，耗时 ${{ steps.check.outputs.site_time }}s`,
-              `- Supabase 数据库接口：HTTP ${{ steps.check.outputs.supa_code }}，耗时 ${{ steps.check.outputs.supa_time }}s`,
+              `- Cloudflare Worker：HTTP ${{ steps.check.outputs.worker_code }}（预期401），耗时 ${{ steps.check.outputs.worker_time }}s`,
             ].join('\n')
 
             if (existing) {
@@ -89,7 +90,7 @@ jobs:
                   '',
                   detail,
                   '',
-                  '常见原因：Supabase 项目刚从休眠唤醒响应慢、网络波动、或服务真的出了问题。',
+                  '常见原因：网络波动、或服务真的出了问题。',
                   '可以去 Actions 页面看这次运行的完整日志进一步排查。',
                   '',
                   '（同一次故障期间后续的失败会追加评论在这条 Issue 下面，不会重复开新的；恢复正常后请手动关闭这条 Issue，下次故障会重新开一条新的）',
