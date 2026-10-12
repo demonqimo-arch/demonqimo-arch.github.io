@@ -12,7 +12,7 @@ function sleep(ms: number) {
 }
 
 export function PinGate({ children }: { children: ReactNode }) {
-  const { loggedIn, markLoggedIn } = useAuthSession()
+  const { loggedIn, kickedOut, markLoggedIn } = useAuthSession()
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -34,21 +34,21 @@ export function PinGate({ children }: { children: ReactNode }) {
       try {
         await login(trimmedPin)
         setSubmitting(false)
-        recordLocalAttempt({ success: true, status: null, code: null, message: null })
+        recordLocalAttempt({ context: 'login', success: true, status: null, code: null, message: null })
         markLoggedIn()
         return
       } catch (err) {
         const isWrongPin = err instanceof WorkerApiError && err.status === 401
         if (isWrongPin) {
           setSubmitting(false)
-          recordLocalAttempt({ success: false, status: 401, code: 'invalid_pin', message: null })
+          recordLocalAttempt({ context: 'login', success: false, status: 401, code: 'invalid_pin', message: null })
           setError('PIN 不对，再试一次')
           setPin('')
           return
         }
 
         const message = err instanceof Error ? err.message : String(err)
-        recordLocalAttempt({ success: false, status: null, code: 'network_error', message })
+        recordLocalAttempt({ context: 'login', success: false, status: null, code: 'network_error', message })
         if (attempt < MAX_RETRIES) {
           await sleep(RETRY_DELAY_MS)
           continue
@@ -66,6 +66,11 @@ export function PinGate({ children }: { children: ReactNode }) {
         className="flex w-full max-w-xs flex-col gap-4 rounded-3xl bg-surface p-6 shadow-card"
       >
         <h1 className="text-center text-base font-semibold tracking-tight">行程管家</h1>
+        {kickedOut && (
+          <p className="text-center text-xs text-rose-500">
+            登录状态失效或数据请求被拒绝，请重新输入PIN（不是你操作错了）
+          </p>
+        )}
         <input
           autoFocus
           type="password"
@@ -102,7 +107,7 @@ export function PinGate({ children }: { children: ReactNode }) {
             ) : (
               localLog.map((entry, i) => (
                 <p key={i} className="border-b border-line py-1 last:border-0">
-                  {entry.time} | {entry.success ? '成功' : '失败'}
+                  {entry.time} | {entry.context} | {entry.success ? '成功' : '失败'}
                   {!entry.success && ` | status:${entry.status} code:${entry.code} msg:${entry.message}`}
                 </p>
               ))

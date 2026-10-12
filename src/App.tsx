@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AddTaskSheet } from './components/AddTaskSheet'
 import { BottomNav } from './components/BottomNav'
 import { MonthlyBackdrop } from './components/MonthlyBackdrop'
+import { SyncStatusBanner } from './components/SyncStatusBanner'
 import { useSelectedDate } from './hooks/useSelectedDate'
 import { useTaskStore } from './store/TaskStore'
 import { AllTasksView } from './views/AllTasksView'
@@ -20,6 +21,7 @@ function Shell() {
   return (
     <div className="relative mx-auto min-h-screen max-w-md pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <MonthlyBackdrop />
+      <SyncStatusBanner />
       <Routes>
         <Route path="/" element={<Navigate to="/day" replace />} />
         <Route path="/day" element={<DayView />} />
