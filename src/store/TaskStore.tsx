@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import { fetchTasksFromWorker, saveTasksToWorker, type TasksPayload } from '../lib/workerApi'
+import { fetchTasksFromGithub, saveTasksToGithub, type TasksPayload } from '../lib/githubApi'
 import type { Task } from '../types/task'
 
 interface TaskStoreValue {
@@ -23,14 +23,14 @@ export function TaskStoreProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const { data, isLoading, isError: loadError, refetch } = useQuery({
     queryKey: ['tasks'],
-    queryFn: fetchTasksFromWorker,
+    queryFn: fetchTasksFromGithub,
     retry: 1,
   })
   const tasks = useMemo(() => data?.tasks ?? [], [data])
   const sha = data?.sha ?? null
 
   const saveMutation = useMutation({
-    mutationFn: (nextTasks: Task[]) => saveTasksToWorker(nextTasks, sha),
+    mutationFn: (nextTasks: Task[]) => saveTasksToGithub(nextTasks, sha),
     onSuccess: (newSha, nextTasks) => {
       queryClient.setQueryData<TasksPayload>(['tasks'], { tasks: nextTasks, sha: newSha })
     },
