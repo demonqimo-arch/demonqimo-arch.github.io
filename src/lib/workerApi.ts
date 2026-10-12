@@ -1,8 +1,10 @@
 import { recordLocalAttempt } from './localLoginLog'
 import type { Task } from '../types/task'
+import { withTimeout } from './withTimeout'
 
 const WORKER_URL = 'https://xingcheng-worker.3156400437.workers.dev'
 const TOKEN_KEY = 'xingcheng_token'
+const FETCH_TIMEOUT_MS = 15000
 
 type UnauthorizedListener = () => void
 const unauthorizedListeners = new Set<UnauthorizedListener>()
@@ -44,8 +46,13 @@ export function hasValidLocalToken(): boolean {
   }
 }
 
+/** 所有请求都套一层超时，网络卡住不响应时最多等这么久就会报错，不会无限期停在"加载中" */
+function fetchWithTimeout(input: string, init?: RequestInit): Promise<Response> {
+  return withTimeout(fetch(input, init), FETCH_TIMEOUT_MS)
+}
+
 export async function login(pin: string): Promise<void> {
-  const res = await fetch(`${WORKER_URL}/login`, {
+  const res = await fetchWithTimeout(`${WORKER_URL}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pin }),
@@ -70,7 +77,7 @@ export class WorkerApiError extends Error {
 
 async function authedFetch(path: string, init?: RequestInit): Promise<Response> {
   const token = getStoredToken()
-  const res = await fetch(`${WORKER_URL}${path}`, {
+  const res = await fetchWithTimeout(`${WORKER_URL}${path}`, {
     ...init,
     headers: {
       ...init?.headers,
